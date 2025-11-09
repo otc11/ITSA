@@ -36,7 +36,7 @@ public class VernamCipher {
         String plain = vernman(cipher, key);
 
         System.out.println("Ciphertext: " + cipher);
-        System.out.println("Plaintext: " + plain);
+        System.out.println("Decrypted: " + plain);
 
         scanner.close();
     }
