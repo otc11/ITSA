@@ -1,0 +1,91 @@
+import java.util.Base64;
+import java.util.Scanner;
+
+public class Custom {
+
+    // -------------------- ENCRYPT FUNCTION --------------------
+    public static String encrypt(String text, String password) {
+        StringBuilder encrypted = new StringBuilder();
+        int pwdLen = password.length();
+
+        for (int i = 0; i < text.length(); i++) {
+            char plainChar = text.charAt(i);
+            char pwdChar = password.charAt(i % pwdLen);
+
+            // Custom encryption rule: add + XOR with password length
+            int encryptedVal = (plainChar + pwdChar) ^ pwdLen;
+            encrypted.append((char) encryptedVal);
+        }
+
+        // Convert to Base64 for readable, safe output
+        return Base64.getEncoder().encodeToString(encrypted.toString().getBytes());
+    }
+
+    // -------------------- DECRYPT FUNCTION --------------------
+    public static String decrypt(String encodedText, String password) {
+        // Decode from Base64 first
+        String text = new String(Base64.getDecoder().decode(encodedText));
+        StringBuilder decrypted = new StringBuilder();
+        int pwdLen = password.length();
+
+        for (int i = 0; i < text.length(); i++) {
+            char encChar = text.charAt(i);
+            char pwdChar = password.charAt(i % pwdLen);
+
+            // Reverse rule: XOR then subtract
+            int decryptedVal = (encChar ^ pwdLen) - pwdChar;
+            decrypted.append((char) decryptedVal);
+        }
+        return decrypted.toString();
+    }
+
+    // -------------------- MAIN --------------------
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.println(" Custom Encryption/Decryption Algorithm");
+        System.out.println("NOTE: Password should contain only alphabets (A–Z or a–z), no digits or special characters.\n");
+
+        String message = "";
+        String password = "";
+
+        // Input validation for message
+        while (true) {
+            System.out.print("Enter message to encrypt: ");
+            message = sc.nextLine();
+            if (message.trim().isEmpty()) {
+                System.out.println(" Message cannot be empty. Please enter valid text.\n");
+            } else {
+                break;
+            }
+        }
+
+        //  Input validation for password
+        while (true) {
+            System.out.print("Enter password (key): ");
+            password = sc.nextLine();
+
+            if (password.trim().isEmpty()) {
+                System.out.println(" Password cannot be empty.\n");
+            } else if (!password.matches("[a-zA-Z]+")) {
+                System.out.println(" Invalid password! Only letters (A–Z or a–z) are allowed.\n");
+            } else if (password.length() < 3) {
+                System.out.println(" Password too short! It must contain at least 3 letters.\n");
+            } else {
+                break;
+            }
+        }
+
+        // Encryption
+        String encrypted = encrypt(message, password);
+        System.out.println("\n Encrypted Text (Base64 Encoded):");
+        System.out.println(encrypted);
+
+        //  Decryption
+        String decrypted = decrypt(encrypted, password);
+        System.out.println("\n Decrypted Text:");
+        System.out.println(decrypted);
+
+        sc.close();
+    }
+}

@@ -1,0 +1,78 @@
+import java.util.Scanner;
+
+public class PolyalphabeticCipher {
+
+    // Encryption method
+    public static String encrypt(String text, String key) {
+        StringBuilder ans = new StringBuilder();
+        text = text.toUpperCase();
+        key = key.toUpperCase();
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c)) {
+                char k = key.charAt(i % key.length());
+                ans.append((char) (((c - 'A') + (k - 'A')) % 26 + 'A'));
+            } else {
+                ans.append(c);
+            }
+        }
+        return ans.toString();
+    }
+
+    // Decryption method
+    public static String decrypt(String text, String key) {
+        StringBuilder ans = new StringBuilder();
+        text = text.toUpperCase();
+        key = key.toUpperCase();
+
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c)) {
+                char k = key.charAt(i % key.length());
+                ans.append((char) (((c - 'A') - (k - 'A') + 26) % 26 + 'A'));
+            } else {
+                ans.append(c);
+            }
+        }
+        return ans.toString();
+    }
+
+    // Main driver
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.println("NOTE: While entering Key for Polyalphabetic cipher please enter a string of any length (letters only)");
+
+        System.out.print("Enter text to encrypt: ");
+        String text = sc.nextLine();
+
+        String key;
+        while (true) {
+            System.out.print("Enter Key: ");
+            key = sc.next();
+
+            // Key must only contain letters (no digits or symbols)
+            if (!key.matches("[a-zA-Z]+")) {
+                System.out.println(" Invalid key! Only letters A–Z or a–z are allowed. Please re-enter.");
+                continue;
+            }
+
+            //  Key must not be empty
+            if (key.length() == 0) {
+                System.out.println(" Key cannot be empty!");
+                continue;
+            }
+
+            break; // valid key
+        }
+
+        System.out.println("Original text: " + text);
+        String encrypted = encrypt(text, key);
+        System.out.println("Encrypted text: " + encrypted);
+
+        String decrypted = decrypt(encrypted, key);
+        System.out.println("Decrypted text: " + decrypted);
+
+        sc.close();
+    }
+}

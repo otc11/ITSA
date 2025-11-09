@@ -1,0 +1,45 @@
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Scanner;
+
+public class Image {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Enter image filename to encrypt/decrypt: ");
+        String inputFile = sc.nextLine();
+
+        System.out.print("Enter output filename: ");
+        String outputFile = sc.nextLine();
+
+        System.out.print("Enter single character key: ");
+        String keyInput = sc.nextLine();
+
+        // Validation for single character key
+        if (keyInput.length() != 1) {
+            System.out.println(" Error: Please enter exactly one character as key!");
+            sc.close();
+            return;
+        }
+
+        char key = keyInput.charAt(0);
+
+        try (FileInputStream fis = new FileInputStream(inputFile);
+             FileOutputStream fos = new FileOutputStream(outputFile)) {
+
+            int data;
+            while ((data = fis.read()) != -1) {
+                fos.write(data ^ key); // XOR encryption/decryption
+            }
+
+            System.out.println("\n Process completed successfully!");
+            System.out.println("Output file: " + outputFile);
+            System.out.println("(Run again with the same key to decrypt the image)");
+
+        } catch (IOException e) {
+            System.out.println(" Error: " + e.getMessage());
+        }
+
+        sc.close();
+    }
+}

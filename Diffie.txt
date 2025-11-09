@@ -1,0 +1,86 @@
+import java.math.BigInteger;
+import java.util.Scanner;
+
+public class DHMitmSimple {
+
+    // helper: modular exponentiation using BigInteger
+    private static BigInteger modExp(BigInteger base, BigInteger exp, BigInteger mod) {
+        return base.modPow(exp, mod);
+    }
+
+    public static void main(String[] args) {
+        // Public parameters (example)
+        BigInteger p  = BigInteger.valueOf(23); // prime
+        BigInteger g  = BigInteger.valueOf(5);  // generator
+
+        // Private keys (Virat, Mahendra, Gambhir(MITM))
+        BigInteger viratPriv  = BigInteger.valueOf(6);   // Virat's private key
+        BigInteger mahendraPriv = BigInteger.valueOf(15);  // Mahendra's private key
+        BigInteger gambhirPriv = BigInteger.valueOf(7);   // Gambhir's private key (MITM)
+
+        // Public keys computed from private keys
+        BigInteger ViratPub  = modExp(g, viratPriv, p);   // Virat's public key
+        BigInteger MahendraPub = modExp(g, mahendraPriv, p);  // Mahendra's public key
+        BigInteger GambhirPub = modExp(g, gambhirPriv, p);  // Gambhir's public key (same value sent to both)
+
+        Scanner sc = new Scanner(System.in);
+        System.out.println("Choose an option:");
+        System.out.println("1. Exchange Public Keys between Virat and Mahendra (normal)");
+        System.out.println("2. Perform Man-In-The-Middle Attack by Gambhir");
+        System.out.print("Enter 1 or 2: ");
+        String choice = sc.nextLine().trim();
+
+        if ("1".equals(choice)) {
+            // Normal exchange
+            System.out.println("\n--- Normal Diffie-Hellman Exchange ---");
+            System.out.println("Virat's Public Key: " + ViratPub);
+            System.out.println("Mahendra's Public Key  : " + MahendraPub);
+
+            // Each computes shared secret
+            BigInteger S_Virat = modExp(MahendraPub, viratPriv, p);
+            BigInteger S_Mahendra   = modExp(ViratPub, mahendraPriv, p);
+
+            System.out.println("Virat computes shared secret: " + S_Virat);
+            System.out.println("Mahendra computes shared secret  : " + S_Mahendra);
+
+            if (S_Virat.equals(S_Mahendra)) {
+                System.out.println("Result: Secure communication established.\n");
+            } else {
+                System.out.println("Result: Shared secrets do not match!\n");
+            }
+        } else if ("2".equals(choice)) {
+            // MITM attack
+            System.out.println("\n--- Man-In-The-Middle (MITM) by Gambhir ---");
+            System.out.println("Virat's Public Key: " + ViratPub);
+            System.out.println("Mahendra's Public Key  : " + MahendraPub);
+
+            // Gambhir intercepts and replaces public keys with his own
+            System.out.println("Gambhir intercepts and sends to Virat: " + GambhirPub);
+            System.out.println("Gambhir intercepts and sends to Mahendra  : " + GambhirPub);
+
+            // Virat computes shared secret thinking he's with Mahendra (but with Gambhir's key)
+            BigInteger S_Virat = modExp(GambhirPub, viratPriv, p);
+            System.out.println("Virat computes shared secret with (what he thinks is Mahendra): " + S_Virat);
+
+            // Mahendra computes shared secret thinking he's with Virat (but with Gambhir's key)
+            BigInteger S_Mahendra = modExp(GambhirPub, mahendraPriv, p);
+            System.out.println("Mahendra computes shared secret with (what he thinks is Virat): " + S_Mahendra);
+
+            // Gambhir actually knows both secrets:
+            BigInteger S_GambhirVirat = modExp(ViratPub, gambhirPriv, p);   // using Virat's public key and Gambhir's private
+            BigInteger S_GambhirMahendra   = modExp(MahendraPub, gambhirPriv, p);  // using Mahendra's public key and Gambhir's private
+            System.out.println("Gambhir computes shared secret with Virat: " + S_GambhirVirat);
+            System.out.println("Gambhir computes shared secret with Mahendra  : " + S_GambhirMahendra);
+
+            if (S_Virat.equals(S_GambhirVirat) && S_Mahendra.equals(S_GambhirMahendra)) {
+                System.out.println("\nResult: Man-In-The-Middle attack successful. Gambhir can intercept/modify messages.\n");
+            } else {
+                System.out.println("\nResult: MITM attack failed!\n");
+            }
+        } else {
+            System.out.println("\nInvalid option! Please run again and enter 1 or 2.\n");
+        }
+
+        sc.close();
+    }
+}

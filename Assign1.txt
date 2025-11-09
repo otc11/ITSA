@@ -1,0 +1,262 @@
+import java.util.*;
+
+public class Assign1 {
+
+    // -------------------- CAESAR CIPHER --------------------
+    public static String caesarEncrypt(String text, int shift) {
+        StringBuilder ans = new StringBuilder();
+        for (char ch : text.toCharArray()) {
+            if (Character.isLetter(ch)) {
+                char base = Character.isUpperCase(ch) ? 'A' : 'a';
+                ans.append((char) ((ch - base + shift) % 26 + base));
+            } else ans.append(ch);
+        }
+        return ans.toString();
+    }
+
+    public static String caesarDecrypt(String text, int shift) {
+        StringBuilder ans = new StringBuilder();
+        for (char ch : text.toCharArray()) {
+            if (Character.isLetter(ch)) {
+                char base = Character.isUpperCase(ch) ? 'A' : 'a';
+                ans.append((char) ((ch - base - shift + 26) % 26 + base));
+            } else ans.append(ch);
+        }
+        return ans.toString();
+    }
+
+    // -------------------- MONOALPHABETIC CIPHER --------------------
+    public static String monoEncrypt(String text, String key) {
+        StringBuilder ans = new StringBuilder();
+        text = text.toUpperCase();
+        key = key.toUpperCase();
+        for (char ch : text.toCharArray()) {
+            if (Character.isLetter(ch)) ans.append(key.charAt(ch - 'A'));
+            else ans.append(ch);
+        }
+        return ans.toString();
+    }
+
+    public static String monoDecrypt(String text, String key) {
+        StringBuilder ans = new StringBuilder();
+        text = text.toUpperCase();
+        key = key.toUpperCase();
+        for (char ch : text.toCharArray()) {
+            if (Character.isLetter(ch)) ans.append((char) (key.indexOf(ch) + 'A'));
+            else ans.append(ch);
+        }
+        return ans.toString();
+    }
+
+    // -------------------- POLYALPHABETIC CIPHER --------------------
+    public static String polyEncrypt(String text, String key) {
+        StringBuilder ans = new StringBuilder();
+        text = text.toUpperCase();
+        key = key.toUpperCase();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c)) {
+                char k = key.charAt(i % key.length());
+                ans.append((char) (((c - 'A') + (k - 'A')) % 26 + 'A'));
+            } else ans.append(c);
+        }
+        return ans.toString();
+    }
+
+    public static String polyDecrypt(String text, String key) {
+        StringBuilder ans = new StringBuilder();
+        text = text.toUpperCase();
+        key = key.toUpperCase();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c)) {
+                char k = key.charAt(i % key.length());
+                ans.append((char) (((c - 'A') - (k - 'A') + 26) % 26 + 'A'));
+            } else ans.append(c);
+        }
+        return ans.toString();
+    }
+
+    // -------------------- RAIL FENCE CIPHER --------------------
+    public static String railEncrypt(String text, int rails) {
+        List<StringBuilder> rail = new ArrayList<>();
+        for (int i = 0; i < rails; i++) rail.add(new StringBuilder());
+        int row = 0, dir = 1;
+        for (char c : text.toCharArray()) {
+            rail.get(row).append(c);
+            if (row == 0) dir = 1;
+            else if (row == rails - 1) dir = -1;
+            row += dir;
+        }
+        StringBuilder result = new StringBuilder();
+        for (StringBuilder sb : rail) result.append(sb);
+        return result.toString();
+    }
+
+    public static String railDecrypt(String cipher, int rails) {
+        int len = cipher.length();
+        int[] railLen = new int[rails];
+        int row = 0, dir = 1;
+        for (int i = 0; i < len; i++) {
+            railLen[row]++;
+            if (row == 0) dir = 1;
+            else if (row == rails - 1) dir = -1;
+            row += dir;
+        }
+        List<String> railsData = new ArrayList<>();
+        int index = 0;
+        for (int lenPart : railLen) {
+            railsData.add(cipher.substring(index, index + lenPart));
+            index += lenPart;
+        }
+        int[] pos = new int[rails];
+        row = 0;
+        dir = 1;
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < len; i++) {
+            result.append(railsData.get(row).charAt(pos[row]++));
+            if (row == 0) dir = 1;
+            else if (row == rails - 1) dir = -1;
+            row += dir;
+        }
+        return result.toString();
+    }
+
+    // -------------------- VERNAM CIPHER --------------------
+    public static String vernamEncrypt(String text, String key) {
+        StringBuilder result = new StringBuilder();
+        text = text.toUpperCase();
+        key = key.toUpperCase();
+        int j = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c)) {
+                char k = key.charAt(j % key.length());
+                result.append((char) (((c - 'A') + (k - 'A')) % 26 + 'A'));
+                j++;
+            } else result.append(c);
+        }
+        return result.toString();
+    }
+
+    public static String vernamDecrypt(String text, String key) {
+        StringBuilder result = new StringBuilder();
+        text = text.toUpperCase();
+        key = key.toUpperCase();
+        int j = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c)) {
+                char k = key.charAt(j % key.length());
+                result.append((char) (((c - 'A') - (k - 'A') + 26) % 26 + 'A'));
+                j++;
+            } else result.append(c);
+        }
+        return result.toString();
+    }
+
+    // -------------------- MAIN MENU --------------------
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int choice;
+        boolean again = true;
+
+        do {
+            System.out.println("\nEncryption Algorithms Menu:");
+            System.out.println("1. Caesar Cipher");
+            System.out.println("2. Monoalphabetic Cipher");
+            System.out.println("3. Polyalphabetic Cipher");
+            System.out.println("4. Rail Fence Cipher");
+            System.out.println("5. Vernam Cipher");
+            System.out.print("<--- Select an option (1-5): ");
+            choice = sc.nextInt();
+            sc.nextLine(); // clear buffer
+
+            String text, key = "";
+            int shift = 0, rails = 0;
+
+            System.out.print("Enter text to encrypt: ");
+            text = sc.nextLine();
+
+            switch (choice) {
+                case 1 -> {
+                    System.out.println("NOTE: Enter integer shift value for Caesar Cipher.");
+                    System.out.print("Enter shift value: ");
+                    shift = sc.nextInt();
+                    sc.nextLine();
+                    System.out.println("Encrypted: " + caesarEncrypt(text, shift));
+                    System.out.println("Decrypted: " + caesarDecrypt(caesarEncrypt(text, shift), shift));
+                }
+
+                case 2 -> {
+                    System.out.println("NOTE: Key must be 26 letters (no digits).");
+                    while (true) {
+                        System.out.print("Enter 26-letter key: ");
+                        key = sc.next();
+                        if (!key.matches("[a-zA-Z]+") || key.length() != 26)
+                            System.out.println(" Invalid key! Enter exactly 26 alphabetic characters.");
+                        else break;
+                    }
+                    System.out.println("Encrypted: " + monoEncrypt(text, key));
+                    System.out.println("Decrypted: " + monoDecrypt(monoEncrypt(text, key), key));
+                }
+
+                case 3 -> {
+                    System.out.println("NOTE: Key can be any length but only letters.");
+                    while (true) {
+                        System.out.print("Enter key: ");
+                        key = sc.next();
+                        if (!key.matches("[a-zA-Z]+"))
+                            System.out.println(" Invalid key! Letters only.");
+                        else break;
+                    }
+                    System.out.println("Encrypted: " + polyEncrypt(text, key));
+                    System.out.println("Decrypted: " + polyDecrypt(polyEncrypt(text, key), key));
+                }
+
+                case 4 -> {
+                    System.out.println("NOTE: Enter rail number (integer > 1).");
+                    while (true) {
+                        System.out.print("Enter Rail Number: ");
+                        if (sc.hasNextInt()) {
+                            rails = sc.nextInt();
+                            if (rails <= 1 || rails > text.length())
+                                System.out.println(" Invalid rail number! Must be >1 and ≤ text length.");
+                            else break;
+                        } else {
+                            System.out.println(" Please enter a valid integer.");
+                            sc.next();
+                        }
+                    }
+                    System.out.println("Encrypted: " + railEncrypt(text, rails));
+                    System.out.println("Decrypted: " + railDecrypt(railEncrypt(text, rails), rails));
+                }
+
+                case 5 -> {
+                    System.out.println("NOTE: Key must contain only letters (A–Z) and be at least as long as text.");
+                    while (true) {
+                        System.out.print("Enter key: ");
+                        key = sc.next();
+                        if (!key.matches("[a-zA-Z]+"))
+                            System.out.println(" Invalid key! Letters only.");
+                        else if (key.length() < text.replaceAll("[^a-zA-Z]", "").length())
+                            System.out.println(" Key too short! It must be at least as long as text.");
+                        else break;
+                    }
+                    System.out.println("Encrypted: " + vernamEncrypt(text, key));
+                    System.out.println("Decrypted: " + vernamDecrypt(vernamEncrypt(text, key), key));
+                }
+
+                default -> System.out.println(" Invalid choice! Please select 1–5.");
+            }
+
+            System.out.print("\nDo you want to continue? (1 for Yes / 0 for No): ");
+            again = sc.nextInt() == 1;
+            sc.nextLine();
+
+        } while (again);
+
+        System.out.println("Exiting program. Goodbye!");
+        sc.close();
+    }
+}

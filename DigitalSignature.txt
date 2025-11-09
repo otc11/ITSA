@@ -1,0 +1,210 @@
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.Scanner;
+
+public class DigitalSignature
+ {
+
+    // ---------- utility: primality check like Python is_prime ----------
+    private static boolean isPrime(int num) {
+        if (num <= 1) return false;
+        int r = (int) Math.sqrt(num);
+        for (int i = 2; i <= r; i++) if (num % i == 0) return false;
+        return true;
+    }
+
+    // ---------- gcd for BigInteger ----------
+    private static BigInteger gcd(BigInteger a, BigInteger b) {
+        return a.gcd(b);
+    }
+
+    // ---------- generate small prime in range [low, high] ----------
+    private static int randomPrimeInRange(int low, int high, Random rnd) {
+        int p = low;
+        while (true) {
+            p = rnd.nextInt(high - low + 1) + low;
+            if (isPrime(p)) return p;
+        }
+    }
+
+    // ---------- generate RSA keypair (e,n) and (d,n) ----------
+    private static KeyPair generateKeypair(Random rnd) {
+        int p = randomPrimeInRange(100, 1000, rnd);
+        int q;
+        do {
+            q = randomPrimeInRange(100, 1000, rnd);
+        } while (q == p);
+
+        BigInteger P = BigInteger.valueOf(p);
+        BigInteger Q = BigInteger.valueOf(q);
+        BigInteger n = P.multiply(Q);
+        BigInteger phi = (P.subtract(BigInteger.ONE)).multiply(Q.subtract(BigInteger.ONE));
+
+        // choose e such that 1 < e < phi and gcd(e,phi) = 1
+        BigInteger e;
+        do {
+            // random in [2, phi-1]
+            e = new BigInteger(phi.bitLength(), rnd).mod(phi.subtract(BigInteger.TWO)).add(BigInteger.TWO);
+        } while (!gcd(e, phi).equals(BigInteger.ONE));
+
+        // compute d
+        BigInteger d = e.modInverse(phi);
+
+        return new KeyPair(e, d, n);
+    }
+
+    // ---------- RSA encrypt per-character: returns list of BigInteger ----------
+    private static List<BigInteger> rsaEncrypt(String message, PublicKey pub) {
+        BigInteger e = pub.e;
+        BigInteger n = pub.n;
+        List<BigInteger> out = new ArrayList<>();
+        for (char ch : message.toCharArray()) {
+            BigInteger m = BigInteger.valueOf((int) ch);
+            out.add(m.modPow(e, n));
+        }
+        return out;
+    }
+
+    // ---------- RSA decrypt per-character: given list and private key (d,n) ----------
+    private static String rsaDecrypt(List<BigInteger> encrypted, PrivateKey priv) {
+        BigInteger d = priv.d;
+        BigInteger n = priv.n;
+        StringBuilder sb = new StringBuilder();
+        for (BigInteger c : encrypted) {
+            BigInteger m = c.modPow(d, n);
+            int code = m.intValue();
+            sb.append((char) code);
+        }
+        return sb.toString();
+    }
+
+    // ---------- SHA-256 hex digest ----------
+    private static String sha256Hex(String message) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(message.getBytes(StandardCharsets.UTF_8));
+            return bytesToHex(digest);
+        } catch (Exception ex) {
+            throw new RuntimeException("SHA-256 not available", ex);
+        }
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) sb.append(String.format("%02x", b & 0xff));
+        return sb.toString();
+    }
+
+    // ---------- Sign: RSA "encrypt" the hex-digest using sender's private key (per-char) ----------
+    private static List<BigInteger> generateSignature(String message, PrivateKey senderPriv) {
+        String hashed = sha256Hex(message); // hex string
+        // sign each char of hex string
+        List<BigInteger> sig = new ArrayList<>();
+        for (char ch : hashed.toCharArray()) {
+            BigInteger m = BigInteger.valueOf((int) ch);
+            sig.add(m.modPow(senderPriv.d, senderPriv.n)); // encrypt with private key (sign)
+        }
+        return sig;
+    }
+
+    // ---------- Verify: decrypt signature with sender's public and compare to SHA-256 hex ----------
+    private static boolean verifySignature(String message, List<BigInteger> signature, PublicKey senderPub) {
+        String expectedHash = sha256Hex(message);
+        // decrypt signature with sender's public key
+        StringBuilder recovered = new StringBuilder();
+        for (BigInteger c : signature) {
+            BigInteger m = c.modPow(senderPub.e, senderPub.n);
+            recovered.append((char) m.intValue());
+        }
+        return expectedHash.equals(recovered.toString());
+    }
+
+    // ---------- small structs for keys ----------
+    private static class KeyPair { // internal holder
+        final PublicKey pub;
+        final PrivateKey priv;
+        KeyPair(BigInteger e, BigInteger d, BigInteger n) {
+            this.pub = new PublicKey(e, n);
+            this.priv = new PrivateKey(d, n);
+        }
+    }
+
+    private static class PublicKey {
+        final BigInteger e;
+        final BigInteger n;
+        PublicKey(BigInteger e, BigInteger n) { this.e = e; this.n = n; }
+    }
+
+    private static class PrivateKey {
+        final BigInteger d;
+        final BigInteger n;
+        PrivateKey(BigInteger d, BigInteger n) { this.d = d; this.n = n; }
+    }
+
+    // ---------- main ----------
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        SecureRandom rnd = new SecureRandom();
+
+        System.out.println("Generating keys for X (sender) and Y (receiver)...");
+        // generate for X
+        KeyPair keysX = generateKeypair(rnd);
+        PublicKey publicX = keysX.pub;
+        PrivateKey privateX = keysX.priv;
+
+        // generate for Y
+        KeyPair keysY = generateKeypair(rnd);
+        PublicKey publicY = keysY.pub;
+        PrivateKey privateY = keysY.priv;
+
+        System.out.println("X (sender) public key (e,n): " + publicX.e + " , " + publicX.n);
+        System.out.println("Y (receiver) public key (e,n): " + publicY.e + " , " + publicY.n);
+        System.out.println();
+
+        System.out.print("\nEnter message from X → Y: ");
+        String message = sc.nextLine();
+
+        // encrypt message with Y's public key
+        List<BigInteger> encryptedMessage = rsaEncrypt(message, publicY);
+        // signature by X: sign hashed message using X's private key
+        List<BigInteger> signature = generateSignature(message, privateX);
+
+        System.out.println("\nEncrypted Message (list of integers): " + encryptedMessage);
+        System.out.println("Signature (list of integers): " + signature);
+
+        // Simulate attacker Z trying to decrypt using invalid key (we'll use a random bogus private key)
+        System.out.println();
+        try {
+            // construct bogus private key (random d, n) — likely incorrect so decrypted will be garbage
+            PrivateKey bogus = new PrivateKey(new BigInteger("12345"), publicY.n); // intentionally wrong d
+            String zRead = rsaDecrypt(encryptedMessage, bogus);
+            // if it matches original we would print, else indicate failure
+            if (zRead.equals(message)) {
+                System.out.println("Z (attacker) managed to read message: " + zRead);
+            } else {
+                System.out.println("Z (attacker) failed to decrypt message — not authorized.");
+            }
+        } catch (Exception ex) {
+            System.out.println("Z (attacker) failed to decrypt message — not authorized.");
+        }
+
+        // Receiver decrypts with Y's private key
+        String decryptedMessage = rsaDecrypt(encryptedMessage, privateY);
+        boolean isValid = verifySignature(decryptedMessage, signature, publicX);
+
+        System.out.println("\nReceiver Side:");
+        System.out.println("Decrypted Message: " + decryptedMessage);
+        if (isValid) {
+            System.out.println("Signature Verified — Message Integrity and Authenticity Confirmed.");
+        } else {
+            System.out.println("Signature Invalid — Message may have been tampered.");
+        }
+
+        sc.close();
+    }
+}

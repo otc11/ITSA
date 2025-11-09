@@ -1,0 +1,184 @@
+import java.io.*;
+import java.net.*;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import java.util.Scanner;
+
+public class Receiver {
+
+    // Check probable prime (uses Miller-Rabin)
+    private static boolean isPrime(BigInteger x) {
+        // 50 rounds is plenty for classroom/demo
+        return x.isProbablePrime(50);
+    }
+
+    // Find a random e such that 1 < e < phi and gcd(e, phi) = 1
+    private static BigInteger findCoprime(BigInteger phi, SecureRandom rnd) {
+        BigInteger e;
+        BigInteger two = BigInteger.valueOf(2);
+        BigInteger max = phi.subtract(two); // phi - 2
+        do {
+            // generate random in range [2, phi-1]
+            e = new BigInteger(phi.bitLength(), rnd);
+            // reduce to range 0..max then add 2 -> 2..phi-? then ensure < phi
+            e = e.mod(max).add(two);
+        } while (!e.gcd(phi).equals(BigInteger.ONE));
+        return e;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        try {
+            System.out.print("Enter first prime number (p): ");
+            BigInteger p = new BigInteger(sc.nextLine().trim());
+            System.out.print("Enter second prime number (q): ");
+            BigInteger q = new BigInteger(sc.nextLine().trim());
+
+            if (!isPrime(p) || !isPrime(q)) {
+                System.out.println("Both p & q must be prime. Exiting.");
+                return;
+            }
+
+            BigInteger n = p.multiply(q);
+            BigInteger phi = (p.subtract(BigInteger.ONE)).multiply(q.subtract(BigInteger.ONE));
+
+            SecureRandom rnd = new SecureRandom();
+            BigInteger e = findCoprime(phi, rnd);
+            BigInteger d;
+            try {
+                d = e.modInverse(phi);
+            } catch (ArithmeticException ex) {
+                System.out.println("Failed to compute modular inverse of e. Exiting.");
+                return;
+            }
+
+            System.out.println("Generated Public Key: (e=" + e + ", n=" + n + ")");
+            System.out.println("Generated Private Key: (d=" + d + ", n=" + n + ")");
+            System.out.println();
+
+            // Start server socket
+            try (ServerSocket serverSocket = new ServerSocket(65432)) {
+                System.out.println("Receiver: Waiting for connection from Sender...");
+                try (Socket conn = serverSocket.accept();
+                     BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                     BufferedWriter out = new BufferedWriter(new OutputStreamWriter(conn.getOutputStream()))
+                ) {
+                    System.out.println("Receiver: Connected by " + conn.getRemoteSocketAddress());
+
+                    // Send public key as "e,n"
+                    String publicKey = e.toString() + "," + n.toString();
+                    out.write(publicKey);
+                    out.newLine();
+                    out.flush();
+                    System.out.println("Receiver: Public Key is sent to Sender");
+
+                    // Receive ciphertext
+                    String data = in.readLine();
+                    if (data == null || data.trim().isEmpty()) {
+                        System.out.println("Receiver: No data received.");
+                    } else {
+                        BigInteger cipherText = new BigInteger(data.trim());
+                        System.out.println("Receiver: Ciphertext received: " + cipherText);
+
+                        // Decrypt and measure time
+                        long start = System.nanoTime();
+                        BigInteger decrypted = cipherText.modPow(d, n);
+                        long end = System.nanoTime();
+                        double decryptionTimeSec = (end - start) / 1_000_000_000.0;
+
+                        System.out.println("Receiver: Decrypted Text is: " + decrypted);
+                        System.out.printf("Decryption Time is: %.6f seconds%n", decryptionTimeSec);
+                    }
+                }
+            } catch (IOException ioe) {
+                System.err.println("Socket error: " + ioe.getMessage());
+            }
+
+        } catch (NumberFormatException nfe) {
+            System.out.println("Invalid integer input. Exiting.");
+        } finally {
+            sc.close();
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+import java.io.*;
+import java.net.*;
+import java.math.BigInteger;
+import java.util.Scanner;
+
+public class Sender {
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        try (Socket socket = new Socket("localhost", 65432);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()))
+        ) {
+            System.out.println("Sender: Connected to receiver. Requesting public key...");
+            // Read public key line "e,n"
+            String keyLine = in.readLine();
+            if (keyLine == null || keyLine.trim().isEmpty()) {
+                System.out.println("Sender: Did not receive public key. Exiting.");
+                return;
+            }
+
+            String[] parts = keyLine.trim().split(",");
+            if (parts.length != 2) {
+                System.out.println("Sender: Invalid public key format received: " + keyLine);
+                return;
+            }
+
+            BigInteger e = new BigInteger(parts[0]);
+            BigInteger n = new BigInteger(parts[1]);
+            System.out.println("Sender: Received public key (e=" + e + ", n=" + n + ") from receiver");
+
+            BigInteger plaintext = null;
+            while (true) {
+                try {
+                    System.out.print("Sender: Enter an integer plaintext to encrypt: ");
+                    String line = sc.nextLine().trim();
+                    plaintext = new BigInteger(line);
+                    if (plaintext.compareTo(BigInteger.ZERO) <= 0 || plaintext.compareTo(n) >= 0) {
+                        System.out.println("Invalid input: Plaintext must be in the range (0, n). Please try again.");
+                        continue;
+                    }
+                    break;
+                } catch (NumberFormatException nfe) {
+                    System.out.println("Invalid input: Not an integer. Please try again.");
+                }
+            }
+
+            // Encrypt and measure time
+            long start = System.nanoTime();
+            BigInteger cipherText = plaintext.modPow(e, n);
+            long end = System.nanoTime();
+            double encryptionTimeSec = (end - start) / 1_000_000_000.0;
+
+            System.out.println("Sender: Ciphertext is: " + cipherText);
+            System.out.printf("Encryption Time is: %.6f seconds%n", encryptionTimeSec);
+
+            // Send ciphertext
+            out.write(cipherText.toString());
+            out.newLine();
+            out.flush();
+            System.out.println("Sender: Ciphertext is sent to receiver");
+
+        } catch (ConnectException ce) {
+            System.err.println("Socket Error: Could not connect to receiver on localhost:65432");
+        } catch (IOException ioe) {
+            System.err.println("Socket Error: " + ioe.getMessage());
+        } finally {
+            sc.close();
+        }
+    }
+}

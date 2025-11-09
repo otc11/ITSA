@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Site using SHA-1 (Demo)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <h2>Secure Website Demo</h2>
+    <p class="note"> This demo uses <b>SHA-1</b> (for learning only — insecure in real use)</p>
+
+    <h3>Create Account</h3>
+    <input type="text" id="username" placeholder="Enter username">
+    <input type="password" id="password" placeholder="Enter password">
+    <button onclick="registerUser()">Register User</button>
+    <div id="result"></div>
+
+    <hr>
+
+    <h3>Verify Login</h3>
+    <input type="text" id="loginUser" placeholder="Username">
+    <input type="password" id="loginPass" placeholder="Password">
+    <button onclick="verifyLogin()">Login</button>
+    <div id="verifyResult"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(120deg, #a8edea, #fed6e3);
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  width: 420px;
+  margin: 80px auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 25px;
+}
+
+h2 {
+  text-align: center;
+  color: #444;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+button {
+  width: 100%;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 12px;
+  margin-top: 10px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #45a049;
+}
+
+#result, #verifyResult {
+  margin-top: 15px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.note {
+  color: #d9534f;
+  font-size: 14px;
+  text-align: center;
+}
+
+
+
+
+
+
+
+
+
+
+// --- Convert ArrayBuffer to hex string ---
+function toHex(buffer) {
+  const byteArray = new Uint8Array(buffer);
+  const hexCodes = [...byteArray].map(value => value.toString(16).padStart(2, '0'));
+  return hexCodes.join('');
+}
+
+// --- Generate a random salt ---
+function generateSalt(length = 8) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let salt = '';
+  for (let i = 0; i < length; i++) salt += chars.charAt(Math.floor(Math.random() * chars.length));
+  return salt;
+}
+
+// --- SHA-1 hashing function ---
+async function sha1(input) {
+  const enc = new TextEncoder();
+  const buf = enc.encode(input);
+  const hashBuf = await crypto.subtle.digest('SHA-1', buf);
+  return toHex(hashBuf);
+}
+
+// --- Create salted hash ---
+async function createHash(username, password) {
+  const salt = generateSalt();
+  const combined = salt + password + username;
+  const hash = await sha1(combined);
+
+  console.log(` Salt for ${username}:`, salt);
+  console.log(` SHA-1 Hash for ${username}:`, hash);
+
+  return { salt, hash };
+}
+
+// --- Register user ---
+async function registerUser() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const result = document.getElementById('result');
+
+  if (!username || !password) {
+    result.textContent = "Please enter both username and password!";
+    result.style.color = "red";
+    return;
+  }
+
+  const { salt, hash } = await createHash(username, password);
+  localStorage.setItem(username, JSON.stringify({ salt, hash }));
+
+  result.innerHTML = `User registered successfully!<br>
+    <b>Salt:</b> ${salt}<br>
+    <b>SHA-1 Hash:</b> ${hash}`;
+  result.style.color = "green";
+}
+
+// --- Verify user credentials ---
+async function verifyLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value.trim();
+  const verifyResult = document.getElementById('verifyResult');
+
+  const storedData = localStorage.getItem(username);
+  if (!storedData) {
+    verifyResult.textContent = " User not found!";
+    verifyResult.style.color = "red";
+    return;
+  }
+
+  const { salt, hash } = JSON.parse(storedData);
+  const inputHash = await sha1(salt + password + username);
+
+  console.log(`Verifying user: ${username}`);
+  console.log(`Input SHA-1: ${inputHash}`);
+  console.log(`Stored SHA-1: ${hash}`);
+
+  if (inputHash === hash) {
+    verifyResult.textContent = " Login Successful!";
+    verifyResult.style.color = "green";
+  } else {
+    verifyResult.textContent = " Invalid credentials!";
+    verifyResult.style.color = "red";
+  }
+}
