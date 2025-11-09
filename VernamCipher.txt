@@ -2,45 +2,42 @@ import java.util.Scanner;
 
 public class VernamCipher {
 
-    public static String encrypt(String text, String key) {
-        if (key.length() < text.length()) {
-            throw new IllegalArgumentException("Key must be at least as long as the text.");
-        }
-
+    public static String vernman(String text, String key) {
+        text = text.toUpperCase();
+        key = key.toUpperCase();
         StringBuilder result = new StringBuilder();
 
         for (int i = 0; i < text.length(); i++) {
-            // XOR each character from text and key
-            char encryptedChar = (char) (text.charAt(i) ^ key.charAt(i));
-            result.append(encryptedChar);
+            char p = text.charAt(i);
+            char k = key.charAt(i);
+            char value = (char) (((p - 'A') ^ (k - 'A')) + 'A');
+            result.append(value);
         }
 
         return result.toString();
     }
 
-    public static String decrypt(String cipher, String key) {
-        // XOR again with same key to get original text
-        return encrypt(cipher, key);
-    }
-
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
+        Scanner scanner = new Scanner(System.in);
 
-        System.out.print("Enter text to encrypt: ");
-        String text = sc.nextLine();
+        System.out.print("Enter the plaintext: ");
+        String text = scanner.nextLine();
 
-        System.out.print("Enter key (same length as text): ");
-        String key = sc.nextLine();
+        System.out.print("Enter the key: ");
+        String key = scanner.nextLine();
 
-        if (key.length() < text.length()) {
-            System.out.println("Error: Key must be as long as text!");
+        if (text.length() != key.length()) {
+            System.out.println("The length of the text and key should be the same.");
+            scanner.close();
             return;
         }
 
-        String encrypted = encrypt(text, key);
-        System.out.println("Encrypted text (in unreadable form): " + encrypted);
+        String cipher = vernman(text, key);
+        String plain = vernman(cipher, key);
 
-        String decrypted = decrypt(encrypted, key);
-        System.out.println("Decrypted text: " + decrypted);
+        System.out.println("Ciphertext: " + cipher);
+        System.out.println("Plaintext: " + plain);
+
+        scanner.close();
     }
 }
